@@ -4,7 +4,7 @@ export interface ApiConfig {
 }
 
 export const DEFAULT_CONFIG: ApiConfig = {
-  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? '',
   mockMode: false,
 }
 
@@ -14,7 +14,12 @@ export function loadConfig(): ApiConfig {
   if (typeof window === 'undefined') return DEFAULT_CONFIG
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...DEFAULT_CONFIG, ...JSON.parse(raw) }
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<ApiConfig>
+      // migrate: drop hardcoded localhost URL so proxy is used
+      if (saved.baseUrl === 'http://localhost:8080') saved.baseUrl = ''
+      return { ...DEFAULT_CONFIG, ...saved }
+    }
   } catch {
     // ignore parse errors
   }

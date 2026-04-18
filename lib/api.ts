@@ -1,6 +1,6 @@
 import type { IngestResult, QueryResult } from './types'
 
-const FALLBACK_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+const FALLBACK_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 async function request<T>(
   path: string,
@@ -30,6 +30,13 @@ export async function healthCheck(baseUrl?: string): Promise<{ status: string }>
   } finally {
     clearTimeout(timer)
   }
+}
+
+export async function listProjects(baseUrl?: string): Promise<{ name: string; file_count: number; func_count: number }[]> {
+  const res = await fetch(`${baseUrl ?? FALLBACK_BASE}/v1/projects`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = await res.json() as { projects: { name: string; file_count: number; func_count: number }[] }
+  return data.projects
 }
 
 export async function ingestProject(

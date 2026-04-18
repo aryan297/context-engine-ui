@@ -132,27 +132,34 @@ export default function GraphView({ nodes, edges, onNodeClick }: Props) {
       container: containerRef.current,
       elements,
       style: NODE_STYLES,
-      layout: {
-        name: 'cose',
-        animate: true,
-        animationDuration: 500,
-        nodeRepulsion: () => 12000,
-        idealEdgeLength: () => 80,
-        gravity: 0.25,
-        numIter: 500,
-        fit: true,
-        padding: 40,
-      } as cytoscape.LayoutOptions,
       minZoom: 0.2,
       maxZoom: 3,
     })
+
+    // Run layout separately so we can stop it on unmount before destroying
+    const layout = cy.layout({
+      name: 'cose',
+      animate: true,
+      animationDuration: 400,
+      nodeRepulsion: () => 12000,
+      idealEdgeLength: () => 80,
+      gravity: 0.25,
+      numIter: 500,
+      fit: true,
+      padding: 40,
+    } as cytoscape.LayoutOptions)
+
+    layout.run()
 
     cy.on('tap', 'node', (evt) => {
       const nodeData = evt.target.data() as GraphNode
       onNodeClick?.(nodeData)
     })
 
-    return () => cy.destroy()
+    return () => {
+      layout.stop()
+      cy.destroy()
+    }
   }, [nodes, edges, onNodeClick])
 
   return <div ref={containerRef} className="cy-container h-full w-full rounded-xl" />

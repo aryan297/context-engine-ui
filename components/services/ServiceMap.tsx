@@ -94,19 +94,23 @@ export default function ServiceMap({ services }: Props) {
           style: { 'border-color': '#f59e0b', 'border-width': 4 },
         },
       ] as any,
-      layout: {
-        name: 'cose',
-        animate: true,
-        animationDuration: 600,
-        nodeRepulsion: () => 20000,
-        idealEdgeLength: () => 120,
-        gravity: 0.2,
-        fit: true,
-        padding: 60,
-      } as cytoscape.LayoutOptions,
       minZoom: 0.3,
       maxZoom: 2.5,
     })
+
+    // Run layout separately so we can stop it before destroy on unmount
+    const layout = cy.layout({
+      name: 'cose',
+      animate: true,
+      animationDuration: 500,
+      nodeRepulsion: () => 20000,
+      idealEdgeLength: () => 120,
+      gravity: 0.2,
+      fit: true,
+      padding: 60,
+    } as cytoscape.LayoutOptions)
+
+    layout.run()
 
     cy.on('tap', 'node', (evt) => {
       const id = evt.target.id() as string
@@ -114,7 +118,10 @@ export default function ServiceMap({ services }: Props) {
       if (svc) setSelected(svc)
     })
 
-    return () => cy.destroy()
+    return () => {
+      layout.stop()
+      cy.destroy()
+    }
   }, [services])
 
   const callers = selected

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, X } from 'lucide-react'
 import { Topbar } from '@/components/layout/Topbar'
 import { StatsGrid } from '@/components/dashboard/StatsGrid'
@@ -8,37 +8,47 @@ import { ProjectCard } from '@/components/dashboard/ProjectCard'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { MOCK_PROJECTS, MOCK_CHANGE_EVENTS } from '@/lib/mock-data'
-import { ingestProject } from '@/lib/api'
+import { MOCK_CHANGE_EVENTS } from '@/lib/mock-data'
+import { ingestProject, listProjects } from '@/lib/api'
 import { useConfig } from '@/lib/config-context'
 import type { Project } from '@/lib/types'
 
 export default function DashboardPage() {
   const { config } = useConfig()
-  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loadingProjects, setLoadingProjects] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name: '', path: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (config.mockMode) {
+      setLoadingProjects(false)
+      return
+    }
+    setLoadingProjects(true)
+    listProjects(config.baseUrl)
+      .then((data) => {
+        setProjects(
+          data.map((p) => ({
+            id: p.name,
+            name: p.name,
+            path: '',
+            created_at: new Date().toISOString(),
+            file_count: p.file_count,
+            func_count: p.func_count,
+            status: 'active' as const,
+          })),
+        )
+      })
+      .catch(() => setProjects([]))
+      .finally(() => setLoadingProjects(false))
+  }, [config.baseUrl, config.mockMode])
+
   async function handleIngest(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (config.mockMode) {
-      const newProject: Project = {
-        id: `mock-${Date.now()}`,
-        name: form.name,
-        path: form.path,
-        created_at: new Date().toISOString(),
-        file_count: Math.floor(Math.random() * 30) + 5,
-        func_count: Math.floor(Math.random() * 150) + 20,
-        status: 'active',
-      }
-      setProjects((prev) => [newProject, ...prev])
-      setShowModal(false)
-      setForm({ name: '', path: '' })
-      return
-    }
     setLoading(true)
     try {
       const res = await ingestProject(form.name, form.path, config.baseUrl)
@@ -81,11 +91,17 @@ export default function DashboardPage() {
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-600">
             Projects — {projects.length}
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            {projects.map((p) => (
-              <ProjectCard key={p.id} project={p} />
-            ))}
-          </div>
+          {loadingProjects ? (
+            <p className="text-xs text-gray-500">Loading projects…</p>
+          ) : projects.length === 0 ? (
+            <p className="text-xs text-gray-500">No projects ingested yet. Click &quot;Ingest Project&quot; to get started.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {projects.map((p) => (
+                <ProjectCard key={p.id} project={p} />
+              ))}
+            </div>
+          )}
         </div>
 
         <RecentActivity events={MOCK_CHANGE_EVENTS} />
