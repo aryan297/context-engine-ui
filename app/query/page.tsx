@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { MessageSquare, Trash2, ChevronDown } from 'lucide-react'
+import { MessageSquare, Trash2, ChevronDown, FlaskConical, Wifi } from 'lucide-react'
 import { Topbar } from '@/components/layout/Topbar'
 import { MessageBubble } from '@/components/query/MessageBubble'
 import { QueryInput } from '@/components/query/QueryInput'
 import { Button } from '@/components/ui/Button'
-import { MOCK_PROJECTS } from '@/lib/mock-data'
+import { MOCK_PROJECTS, mockQueryResult } from '@/lib/mock-data'
 import { queryContext } from '@/lib/api'
+import { useConfig } from '@/lib/config-context'
 import type { ChatMessage } from '@/lib/types'
 
 const SUGGESTIONS = [
@@ -21,6 +22,7 @@ let msgId = 0
 const nextId = () => String(++msgId)
 
 export default function QueryPage() {
+  const { config } = useConfig()
   const [project, setProject] = useState(MOCK_PROJECTS[1].name)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -44,8 +46,30 @@ export default function QueryPage() {
     setInput('')
     setLoading(true)
 
+    // Use mock data when mock mode is enabled
+    if (config.mockMode) {
+      await new Promise((r) => setTimeout(r, 600)) // simulate latency
+      const result = mockQueryResult(text, project)
+      const fileCount = result.files.length + result.related_files.length
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === loadingId
+            ? {
+                ...msg,
+                loading: false,
+                content: `[Mock] Found ${fileCount} file${fileCount !== 1 ? 's' : ''} and ${result.functions.length} function${result.functions.length !== 1 ? 's' : ''} for "${text}".`,
+                result,
+              }
+            : msg,
+        ),
+      )
+      setLoading(false)
+      return
+    }
+
+    // Live API call with automatic mock fallback on failure
     try {
-      const result = await queryContext(project, text)
+      const result = await queryContext(project, text, config.baseUrl)
       const fileCount = (result.files?.length ?? 0) + (result.related_files?.length ?? 0)
       const fnCount = result.functions?.length ?? 0
       setMessages((m) =>
@@ -54,20 +78,25 @@ export default function QueryPage() {
             ? {
                 ...msg,
                 loading: false,
-                content: `Found ${fileCount} relevant file${fileCount !== 1 ? 's' : ''} and ${fnCount} function${fnCount !== 1 ? 's' : ''}.`,
+                content: `Found ${fileCount} relevant file${fileCount !== 1 ? 's' : ''} and ${fnCount} function${fnCount !== 1 ? 's' : ''} for "${text}".`,
                 result,
               }
             : msg,
         ),
       )
-    } catch (err: unknown) {
+    } catch {
+      // API unreachable — fall back to mock with a notice
+      const fallback = mockQueryResult(text, project)
+      const fc = fallback.files.length + fallback.related_files.length
       setMessages((m) =>
         m.map((msg) =>
           msg.id === loadingId
             ? {
                 ...msg,
                 loading: false,
-                content: `Error: ${err instanceof Error ? err.message : 'Query failed. Is the API server running?'}`,
+                content: `API unreachable — showing mock results. Found ${fc} file${fc !== 1 ? 's' : ''} and ${fallback.functions.length} function${fallback.functions.length !== 1 ? 's' : ''} for "${text}".`,
+                result: fallback,
+                fallback: true,
               }
             : msg,
         ),
@@ -77,6 +106,8 @@ export default function QueryPage() {
     }
   }
 
+  const isMock = config.mockMode
+
   return (
     <>
       <Topbar
@@ -84,6 +115,17 @@ export default function QueryPage() {
         subtitle="Ask natural language questions about your codebase"
         actions={
           <div className="flex items-center gap-2">
+            {/* Mode badge */}
+            <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+              isMock
+                ? 'border-accent-amber/30 bg-accent-amber/10 text-accent-amber'
+                : 'border-accent-green/30 bg-accent-green/10 text-accent-green'
+            }`}>
+              {isMock ? <FlaskConical className="h-3 w-3" /> : <Wifi className="h-3 w-3" />}
+              {isMock ? 'Mock Mode' : 'Live API'}
+            </div>
+
+            {/* Project selector */}
             <div className="relative">
               <select
                 value={project}
@@ -91,13 +133,12 @@ export default function QueryPage() {
                 className="h-8 appearance-none rounded-lg border border-bg-border bg-bg-elevated pl-3 pr-8 text-xs text-gray-200 outline-none focus:border-accent-cyan/50"
               >
                 {MOCK_PROJECTS.map((p) => (
-                  <option key={p.id} value={p.name}>
-                    {p.name}
-                  </option>
+                  <option key={p.id} value={p.name}>{p.name}</option>
                 ))}
               </select>
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-500" />
             </div>
+
             <Button
               variant="ghost"
               size="sm"
@@ -121,7 +162,13 @@ export default function QueryPage() {
               <div>
                 <p className="text-base font-semibold text-gray-300">Query your codebase</p>
                 <p className="mt-1 text-sm text-gray-600">
-                  Ask natural language questions — the engine retrieves relevant context.
+                  {isMock
+                    ? 'Mock mode is on — results come from local sample data.'
+                    : 'Results come from the Context Engine backend.'}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-700">
+                  Configure the API source via the{' '}
+                  <span className="text-gray-500">⚙ gear icon</span> in the sidebar.
                 </p>
               </div>
               <div className="grid max-w-md grid-cols-2 gap-2">

@@ -1,4 +1,4 @@
-import { FileCode2, FunctionSquare, Network } from 'lucide-react'
+import { FileCode2, FunctionSquare, Network, FlaskConical } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { LoadingDots } from '@/components/ui/Spinner'
 import type { ChatMessage } from '@/lib/types'
@@ -35,10 +35,22 @@ export function MessageBubble({ message }: Props) {
 
   return (
     <div className="flex gap-3">
-      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-accent-cyan/10">
-        <span className="text-[10px] font-bold text-accent-cyan">CE</span>
+      <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${
+        message.fallback ? 'bg-accent-amber/10' : 'bg-accent-cyan/10'
+      }`}>
+        {message.fallback
+          ? <FlaskConical className="h-3.5 w-3.5 text-accent-amber" />
+          : <span className="text-[10px] font-bold text-accent-cyan">CE</span>
+        }
       </div>
       <div className="min-w-0 flex-1 space-y-3">
+        {/* Fallback notice */}
+        {message.fallback && (
+          <div className="flex items-center gap-2 rounded-lg border border-accent-amber/20 bg-accent-amber/5 px-3 py-2 text-xs text-accent-amber">
+            <FlaskConical className="h-3 w-3 flex-shrink-0" />
+            API offline — showing mock results. Start the backend to get real context.
+          </div>
+        )}
         <div className="rounded-2xl rounded-tl-sm border border-bg-border bg-bg-card px-4 py-3">
           <p className="text-sm text-gray-300">{message.content}</p>
         </div>

@@ -48,6 +48,7 @@ export interface ChatMessage {
   result?: QueryResult
   timestamp: Date
   loading?: boolean
+  fallback?: boolean  // true when API was unreachable and mock data was used
 }
 
 export interface ChangeEvent {

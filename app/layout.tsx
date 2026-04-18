@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { ConfigProvider } from '@/lib/config-context'
 import { AppShell } from '@/components/layout/AppShell'
 
 export const metadata: Metadata = {
@@ -11,7 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="bg-bg-base">
-        <AppShell>{children}</AppShell>
+        <ConfigProvider>
+          <AppShell>{children}</AppShell>
+        </ConfigProvider>
       </body>
     </html>
   )

@@ -1,4 +1,4 @@
-import type { Project, ChangeEvent, ServiceNode, GraphNode, GraphEdge, FileNode } from './types'
+import type { Project, ChangeEvent, ServiceNode, GraphNode, GraphEdge, FileNode, QueryResult } from './types'
 
 export const MOCK_PROJECTS: Project[] = [
   {
@@ -377,4 +377,41 @@ export function buildGraphElements(
   }
 
   return { nodes, edges }
+}
+
+/**
+ * Returns mock query results by keyword-matching query terms against
+ * file/function summaries. Used when API is offline or mock mode is on.
+ */
+export function mockQueryResult(query: string, projectName: string): QueryResult {
+  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2)
+
+  function score(text: string): number {
+    const t = text.toLowerCase()
+    return terms.reduce((n, term) => n + (t.includes(term) ? 1 : 0), 0)
+  }
+
+  const projectFiles = MOCK_FILES.filter((f) => f.project_name === projectName)
+  const allFiles = projectFiles.length > 0 ? projectFiles : MOCK_FILES
+
+  const rankedFiles = allFiles
+    .map((f) => ({ f, s: score(f.name + ' ' + f.summary) }))
+    .sort((a, b) => b.s - a.s)
+
+  const topFiles = rankedFiles.slice(0, 3).map((r) => r.f)
+  const related = rankedFiles.slice(3, 5).map((r) => r.f)
+
+  const allFunctions = allFiles.flatMap((f) => f.functions)
+  const topFunctions = allFunctions
+    .map((fn) => ({ fn, s: score(fn.name + ' ' + fn.summary + ' ' + fn.signature) }))
+    .sort((a, b) => b.s - a.s)
+    .slice(0, 6)
+    .map((r) => r.fn)
+
+  return {
+    query,
+    files: topFiles,
+    functions: topFunctions,
+    related_files: related,
+  }
 }

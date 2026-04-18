@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { MOCK_PROJECTS, MOCK_CHANGE_EVENTS } from '@/lib/mock-data'
 import { ingestProject } from '@/lib/api'
+import { useConfig } from '@/lib/config-context'
 import type { Project } from '@/lib/types'
 
 export default function DashboardPage() {
+  const { config } = useConfig()
   const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name: '', path: '' })
@@ -22,9 +24,24 @@ export default function DashboardPage() {
   async function handleIngest(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    if (config.mockMode) {
+      const newProject: Project = {
+        id: `mock-${Date.now()}`,
+        name: form.name,
+        path: form.path,
+        created_at: new Date().toISOString(),
+        file_count: Math.floor(Math.random() * 30) + 5,
+        func_count: Math.floor(Math.random() * 150) + 20,
+        status: 'active',
+      }
+      setProjects((prev) => [newProject, ...prev])
+      setShowModal(false)
+      setForm({ name: '', path: '' })
+      return
+    }
     setLoading(true)
     try {
-      const res = await ingestProject(form.name, form.path)
+      const res = await ingestProject(form.name, form.path, config.baseUrl)
       const newProject: Project = {
         id: res.result.project_id,
         name: form.name,
